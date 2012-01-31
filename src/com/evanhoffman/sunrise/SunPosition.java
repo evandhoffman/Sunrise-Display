@@ -1,5 +1,6 @@
 package com.evanhoffman.sunrise;
 
+import java.util.Calendar;
 import java.util.Date;
 
 /**
@@ -128,6 +129,24 @@ public class SunPosition {
 	 * Do the work here.
 	 */
 	private void calculatePosition() {
+		Calendar cal = Calendar.getInstance();
+		cal.setTime(date);
+		
+		int dayOfYear = cal.get(Calendar.DAY_OF_YEAR);
+		double hour = cal.get(Calendar.HOUR_OF_DAY);
+		double min = cal.get(Calendar.MINUTE);
+		double second = cal.get(Calendar.SECOND);
+		double millisecond = cal.get(Calendar.MILLISECOND);
+		
+		hour = hour + (min / 60d) + ((second + (millisecond/1000d))/3600d);
+		
+		int year = cal.get(Calendar.YEAR);
+		int delta = year - 1949;
+		int leap = delta/4;
+		
+		double julianDate = 32916.5 + (delta * 365) + leap + dayOfYear + hour;
+		
+		double time = julianDate - 51545;
 		
 	}
 	
