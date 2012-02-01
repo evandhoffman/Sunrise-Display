@@ -127,16 +127,24 @@ public class SunPosition {
 	
 	/**
 	 * Do the work here.
+	 * http://stackoverflow.com/questions/8708048/position-of-the-sun-given-time-of-day-latitude-and-longitude/8764866#8764866
 	 */
+	
+	static final double TWOPI = Math.PI * 2d;
+	static final double DEG2RAD = Math.PI / 180d;
+	
 	private void calculatePosition() {
 		Calendar cal = Calendar.getInstance();
 		cal.setTime(date);
 		
+	    // # Get day of the year, e.g. Feb 1 = 32, Mar 1 = 61 on leap years
 		int dayOfYear = cal.get(Calendar.DAY_OF_YEAR);
 		double hour = cal.get(Calendar.HOUR_OF_DAY);
 		double min = cal.get(Calendar.MINUTE);
 		double second = cal.get(Calendar.SECOND);
 		double millisecond = cal.get(Calendar.MILLISECOND);
+		
+	    // # Get Julian date - 2400000
 		
 		hour = hour + (min / 60d) + ((second + (millisecond/1000d))/3600d);
 		
@@ -146,8 +154,80 @@ public class SunPosition {
 		
 		double julianDate = 32916.5 + (delta * 365) + leap + dayOfYear + hour;
 		
+	    // # The input to the Atronomer's almanach is the difference between
+	    // # the Julian date and JD 2451545.0 (noon, 1 January 2000)
+
 		double time = julianDate - 51545;
 		
+	    // # Ecliptic coordinates
+
+	    // # Mean longitude
+		double mnlong = 280.460 + (.9856474 * time);
+		mnlong = ((mnlong % 360)+360)%360; // I THINK this is what "mnanom[mnanom < 0] <- mnanom[mnanom < 0] + 360" means?
+		
+		// Mean anomaly
+		double mnanom = 357.528 + (.9856003 * time);
+		mnanom = ((mnanom % 360)+360)%360;
+		mnanom = mnanom * DEG2RAD;
+		
+		// Ecliptic longitude and obliquity of ecliptic
+		double eclong = mnlong + (1.915 * Math.sin(mnanom)) + (0.020 * Math.sin(2 * mnanom));
+		eclong = ((eclong % 360)+360)%360;
+		double oblqec = 23.439 - (0.0000004 * time);
+		eclong = eclong * DEG2RAD;
+		oblqec = oblqec * DEG2RAD;
+		
+	    // # Celestial coordinates
+	    // # Right ascension and declination		
+		double numerator = Math.cos(oblqec) * Math.sin(eclong);
+		double denominator = Math.cos(eclong);
+		double ra = Math.atan(numerator/denominator);
+		if (denominator < 0) {
+			ra = ra + Math.PI;
+		}
+		if (denominator >= 0 && numerator < 0) {
+			ra += TWOPI;
+		}
+		double declination = Math.asin(Math.sin(oblqec) * Math.sin(eclong));
+		
+		// Local coordinates
+		// Greenwich mean sidereal time
+		double gmst = 6.697375 + (.0657098242 * time) + hour;
+		gmst = ((gmst%24)+24)%24;
+		
+	    //# Local mean sidereal time
+		double lmst = gmst + (longitude / 15);
+		lmst = ((lmst % 24)+24)%24;
+	    lmst = lmst * 15 * DEG2RAD;
+		
+	    // Hour angle.  Must be between ¹ and -¹ I guess?
+	    double ha = lmst - ra;
+	    if (ha < (-1d * Math.PI)) { 
+	    	ha += TWOPI;
+	    } if (ha > Math.PI) {
+	    	ha -= TWOPI;
+	    }
+	    
+	    // Latitude to radians
+	    double latradians = latitude * DEG2RAD;
+		
+	    // Azimuth and elevation
+	    double el = Math.asin((Math.sin(declination) * Math.sin(latradians)) + (Math.cos(declination) * Math.cos(latradians) * Math.cos(ha)));
+	    double az = Math.asin((-1d * Math.cos(declination) * Math.sin(ha)) / Math.cos(el));
+	    
+	    boolean cosAzPos = ((Math.sin(declination) - (Math.sin(el) * Math.sin(latradians))) >= 0);
+	    boolean sinAzNeg = Math.sin(az) < 0;
+	    
+	    if (cosAzPos && sinAzNeg) {
+	    	az += TWOPI;
+	    }
+	    if (!cosAzPos) {
+	    	az = Math.PI - az;
+	    }
+	    
+	    elevation = el / DEG2RAD;
+	    azimuth = az / DEG2RAD;
+	    
 	}
 	
 	public void calculatePosition(Date d, double latitude, double longitude) {
