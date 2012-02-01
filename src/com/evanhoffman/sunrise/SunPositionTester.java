@@ -30,7 +30,7 @@ public class SunPositionTester {
 		cal.set(Calendar.MINUTE, 0);
 		cal.set(Calendar.SECOND, 0);
 		
-		DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z");
 		
 		System.out.println("Date\tElevation\tAzimuth");
 //		SunPosition positions[] = new SunPosition[24];
