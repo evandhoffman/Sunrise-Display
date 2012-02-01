@@ -1,5 +1,12 @@
 package com.evanhoffman.sunrise;
 
+import static java.lang.Math.asin;
+import static java.lang.Math.atan;
+import static java.lang.Math.cos;
+import static java.lang.Math.sin;
+import static java.lang.Math.PI;
+
+
 import java.util.Calendar;
 import java.util.Date;
 
@@ -114,24 +121,36 @@ public class SunPosition {
 	private Date date = null;
 	private double latitude = 0;
 	private double longitude = 0;
+
+	public SunPosition(Date d, MapCoordinate coord) {
+		this(d, coord.getLatitude(), coord.getLongitude());
+	}
 	
 	public SunPosition(Date d, double latitude, double longitude) {
-		if (d == null || latitude > 360 || longitude > 360) {
+		if (d == null) {
 			throw new IllegalArgumentException();
 		}
 		this.date = d;
-		this.latitude = latitude;
-		this.longitude = longitude;
+		setLatitude(latitude);
+		setLongitude(longitude);
 		calculatePosition();
 	}
 	
+	private void setLatitude(double latitude) {
+		this.latitude = (latitude % 360d);
+	}
+
+	private void setLongitude(double longitude) {
+		this.longitude = (longitude % 360d);
+	}
+
 	/**
 	 * Do the work here.
 	 * http://stackoverflow.com/questions/8708048/position-of-the-sun-given-time-of-day-latitude-and-longitude/8764866#8764866
 	 */
 	
-	static final double TWOPI = Math.PI * 2d;
-	static final double DEG2RAD = Math.PI / 180d;
+	static final double TWOPI = PI * 2d;
+	static final double DEG2RAD = PI / 180d;
 	
 	private void calculatePosition() {
 		Calendar cal = Calendar.getInstance();
@@ -139,11 +158,12 @@ public class SunPosition {
 		
 	    // # Get day of the year, e.g. Feb 1 = 32, Mar 1 = 61 on leap years
 		int dayOfYear = cal.get(Calendar.DAY_OF_YEAR);
-		double hour = cal.get(Calendar.HOUR_OF_DAY);
+//		double hour = cal.get(Calendar.HOUR_OF_DAY);
+		double hour = cal.get(Calendar.HOUR_OF_DAY) - ((cal.get(Calendar.ZONE_OFFSET) + cal.get(Calendar.DST_OFFSET)) / (3600 * 1000));
 		double min = cal.get(Calendar.MINUTE);
 		double second = cal.get(Calendar.SECOND);
 		double millisecond = cal.get(Calendar.MILLISECOND);
-		
+				
 	    // # Get Julian date - 2400000
 		
 		hour = hour + (min / 60d) + ((second + (millisecond/1000d))/3600d);
@@ -152,7 +172,10 @@ public class SunPosition {
 		int delta = year - 1949;
 		int leap = delta/4;
 		
+		// Modified Julian Date (MJD) from 00:00 November 17, 1858, Wednesday 
+		// See http://en.wikipedia.org/wiki/Julian_day
 		double julianDate = 32916.5 + (delta * 365) + leap + dayOfYear + hour;
+//		System.out.println("Julian date: "+julianDate);
 		
 	    // # The input to the Atronomer's almanach is the difference between
 	    // # the Julian date and JD 2451545.0 (noon, 1 January 2000)
@@ -171,7 +194,7 @@ public class SunPosition {
 		mnanom = mnanom * DEG2RAD;
 		
 		// Ecliptic longitude and obliquity of ecliptic
-		double eclong = mnlong + (1.915 * Math.sin(mnanom)) + (0.020 * Math.sin(2 * mnanom));
+		double eclong = mnlong + (1.915 * sin(mnanom)) + (0.020 * sin(2 * mnanom));
 		eclong = ((eclong % 360)+360)%360;
 		double oblqec = 23.439 - (0.0000004 * time);
 		eclong = eclong * DEG2RAD;
@@ -179,16 +202,16 @@ public class SunPosition {
 		
 	    // # Celestial coordinates
 	    // # Right ascension and declination		
-		double numerator = Math.cos(oblqec) * Math.sin(eclong);
-		double denominator = Math.cos(eclong);
-		double ra = Math.atan(numerator/denominator);
+		double numerator = cos(oblqec) * sin(eclong);
+		double denominator = cos(eclong);
+		double ra = atan(numerator/denominator);
 		if (denominator < 0) {
-			ra = ra + Math.PI;
+			ra = ra + PI;
 		}
 		if (denominator >= 0 && numerator < 0) {
 			ra += TWOPI;
 		}
-		double declination = Math.asin(Math.sin(oblqec) * Math.sin(eclong));
+		double declination = asin(sin(oblqec) * sin(eclong));
 		
 		// Local coordinates
 		// Greenwich mean sidereal time
@@ -200,11 +223,11 @@ public class SunPosition {
 		lmst = ((lmst % 24)+24)%24;
 	    lmst = lmst * 15 * DEG2RAD;
 		
-	    // Hour angle.  Must be between ¹ and -¹ I guess?
+	    // Hour angle. 
 	    double ha = lmst - ra;
-	    if (ha < (-1d * Math.PI)) { 
+	    if (ha < (-1d * PI)) { 
 	    	ha += TWOPI;
-	    } if (ha > Math.PI) {
+	    } if (ha > PI) {
 	    	ha -= TWOPI;
 	    }
 	    
@@ -212,17 +235,17 @@ public class SunPosition {
 	    double latradians = latitude * DEG2RAD;
 		
 	    // Azimuth and elevation
-	    double el = Math.asin((Math.sin(declination) * Math.sin(latradians)) + (Math.cos(declination) * Math.cos(latradians) * Math.cos(ha)));
-	    double az = Math.asin((-1d * Math.cos(declination) * Math.sin(ha)) / Math.cos(el));
+	    double el = asin((sin(declination) * sin(latradians)) + (cos(declination) * cos(latradians) * cos(ha)));
+	    double az = asin((-1d * cos(declination) * sin(ha)) / cos(el));
 	    
-	    boolean cosAzPos = ((Math.sin(declination) - (Math.sin(el) * Math.sin(latradians))) >= 0);
-	    boolean sinAzNeg = Math.sin(az) < 0;
+	    boolean cosAzPos = 0 <= (sin(declination) - (sin(el) * sin(latradians)));
+	    boolean sinAzNeg = sin(az) < 0;
 	    
 	    if (cosAzPos && sinAzNeg) {
 	    	az += TWOPI;
 	    }
 	    if (!cosAzPos) {
-	    	az = Math.PI - az;
+	    	az = PI - az;
 	    }
 	    
 	    elevation = el / DEG2RAD;
@@ -231,12 +254,13 @@ public class SunPosition {
 	}
 	
 	public void calculatePosition(Date d, double latitude, double longitude) {
-		if (d == null || latitude > 360 || longitude > 360) {
+		if (d == null) {
 			throw new IllegalArgumentException();
 		}
 		this.date = d;
-		this.latitude = latitude;
-		this.longitude = longitude;
+		setLatitude(latitude);
+		setLongitude(longitude);
+
 		calculatePosition();
 	}
 	
@@ -247,13 +271,15 @@ public class SunPosition {
 		this.date = d;		
 		calculatePosition();
 	}
+
+	public void calculatePosition(MapCoordinate coord) {
+		calculatePosition(coord.getLatitude(), coord.getLongitude());
+	}
+
 	
 	public void calculatePosition(double latitude, double longitude) {
-		if (latitude > 360 || longitude > 360) {
-			throw new IllegalArgumentException();
-		}
-		this.latitude = latitude;
-		this.longitude = longitude;
+		setLatitude(latitude);
+		setLongitude(longitude);
 		calculatePosition();		
 	}
 	

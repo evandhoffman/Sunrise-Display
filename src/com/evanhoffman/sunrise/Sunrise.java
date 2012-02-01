@@ -18,8 +18,8 @@ public class Sunrise extends Frame {
 
 	static final int WIDTH=1000;
 	static final int HEIGHT=600;
+	static final MapCoordinate mineola = new MapCoordinate("Mineola",40.738675, -73.645687);
 	
-
 	public Sunrise() { 
 		this("Sunrise v1.0"); 
 	}
