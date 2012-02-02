@@ -34,7 +34,7 @@ public class SunPositionTester {
 		
 		System.out.println("Date\tElevation\tAzimuth");
 //		SunPosition positions[] = new SunPosition[24];
-		for (int i = 0; i < 24; i++) {
+		for (int i = 12; i < 13; i++) {
 			cal.set(Calendar.HOUR_OF_DAY, i);
 			Date d = cal.getTime();
 //			d = new Date(d.getTime() + tz.getOffset(d.getTime()));

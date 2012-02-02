@@ -174,7 +174,7 @@ public class SunPosition {
 		
 		// Modified Julian Date (MJD) from 00:00 November 17, 1858, Wednesday 
 		// See http://en.wikipedia.org/wiki/Julian_day
-		double julianDate = 32916.5 + (delta * 365) + leap + dayOfYear + hour;
+		double julianDate = 32916.5 + (delta * 365) + leap + dayOfYear + (hour/24);
 //		System.out.println("Julian date: "+julianDate);
 		
 	    // # The input to the Atronomer's almanach is the difference between
