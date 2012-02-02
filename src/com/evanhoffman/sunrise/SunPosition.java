@@ -303,5 +303,9 @@ public class SunPosition {
 		return longitude;
 	}
 	
-	
+	@Override
+	public String toString() {
+		// TODO Auto-generated method stub
+		return "{date="+getDate()+", latitude="+getLatitude()+", longitude="+getLongitude()+", elevation="+getElevation()+", azimuth="+getAzimuth()+"}";
+	}
 }
