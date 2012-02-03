@@ -20,6 +20,7 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Rectangle2D;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -186,6 +187,9 @@ public class Sunrise extends Frame implements ActionListener {
 		g2.setFont(new Font("Arial", Font.PLAIN, 8));
 
 		int sunDiameter = 20;
+		
+		boolean sunBehindYou = false;
+
 
 		while(cal.get(Calendar.DAY_OF_YEAR) == dayOfYear) {
 			cal.add(Calendar.MINUTE, 30);
@@ -194,20 +198,13 @@ public class Sunrise extends Frame implements ActionListener {
 
 			if (location.getLatitude() > 0) {
 				//						System.out.println(sunPos);
-				/*
-				 * Add 90 to the Azimuth for drawing.  In NY, sunrise is at around 120¼ Azimuth.  On the unit circle that
-				 * I learned in school, with 0 to the right and 90¼ at the top, 120¼ is in quadrant II 
-				 * (where X is negative and Y is positive).  
-				 * But with the azimuth circle, 0¼ is North, 90¼ is East, 180¼ South,
-				 * 270¼ West, and 120¼ is in what would be Quadrant IV.  So you want to subtract 90, 
-				 * but rotate 180 (since the sun is in the south).
-				 */
-				sunX = centerX + (int)(Math.cos((90+ sunPos.getAzimuth()) * deg2rad) * sunDistance) ;
+				sunX = centerX + (int)(Math.sin((-1*sunPos.getAzimuth()) * deg2rad) * sunDistance) ; // -1 to face south. sin() because azimuth and unit circle don't face the same direction.
 				sunY = centerY - (int)(Math.sin(sunPos.getElevation() * deg2rad) * sunDistance);
-				//sunY = centerY;
+				sunBehindYou = Math.cos((-1*sunPos.getAzimuth()) * deg2rad) > 0;
 			} else {
-				sunX = centerX + (int)(Math.cos((90 + sunPos.getAzimuth()) * deg2rad) * sunDistance) ;
+				sunX = centerX + (int)(Math.sin((sunPos.getAzimuth()) * deg2rad) * sunDistance) ;
 				sunY = centerY - (int)(Math.sin(sunPos.getElevation() * deg2rad) * sunDistance);
+				sunBehindYou = Math.cos((sunPos.getAzimuth()) * deg2rad) < 0;
 			}			
 			// Put the center of the sun (rather than the corner) on the appropriate point
 			sun = new Ellipse2D.Double(sunX-(sunDiameter/2),sunY-(sunDiameter/2), sunDiameter, sunDiameter);
@@ -215,7 +212,7 @@ public class Sunrise extends Frame implements ActionListener {
 			g2.setStroke(new BasicStroke(8));
 			g2.fill(sun);
 			g2.setPaint((Color.BLACK));
-			g2.drawString(df1.format(cal.getTime()), sun.getBounds().x -5, sun.getBounds().y - 5 );
+			g2.drawString(df1.format(cal.getTime())+ (sunBehindYou ? " (behind)" : ""), sun.getBounds().x -5, sun.getBounds().y - 5 );
 		}
 
 
@@ -231,22 +228,20 @@ public class Sunrise extends Frame implements ActionListener {
 		cal.setTime(new Date());
 		sunPos.calculatePosition(cal.getTime());
 
+		sunDistance *= 1.2;
+		String facingDirection;
 		if (location.getLatitude() > 0) {
-			/*
-			 * Add 90 to the Azimuth for drawing.  In NY, sunrise is at around 120¼ Azimuth.  On the unit circle that
-			 * I learned in school, with 0 to the right and 90¼ at the top, 120¼ is in quadrant II 
-			 * (where X is negative and Y is positive).  
-			 * But with the azimuth circle, 0¼ is North, 90¼ is East, 180¼ South,
-			 * 270¼ West, and 120¼ is in what would be Quadrant IV.  So you want to subtract 90, 
-			 * but rotate 180 (since the sun is in the south).
-			 */
-			sunX = centerX + (int)(Math.cos((90+ sunPos.getAzimuth()) * deg2rad) * sunDistance*1.1) ;
-			sunY = centerY - (int)(Math.sin(sunPos.getElevation() * deg2rad) * sunDistance*1.1);
-			//sunY = centerY;
-		} else {
-			sunX = centerX + (int)(Math.cos((90 + sunPos.getAzimuth()) * deg2rad) * sunDistance) ;
+			sunX = centerX + (int)(Math.sin((-1*sunPos.getAzimuth()) * deg2rad) * sunDistance) ; // -1 to face south. sin() because azimuth and unit circle don't face the same direction.			
 			sunY = centerY - (int)(Math.sin(sunPos.getElevation() * deg2rad) * sunDistance);
-		}			
+			sunBehindYou = Math.cos((-1*sunPos.getAzimuth()) * deg2rad) > 0;
+			//sunY = centerY;
+			facingDirection = "SOUTH";
+		} else {
+			sunX = centerX + (int)(Math.sin((sunPos.getAzimuth()) * deg2rad) * sunDistance) ;
+			sunY = centerY - (int)(Math.sin(sunPos.getElevation() * deg2rad) * sunDistance);
+			facingDirection = "NORTH";
+			sunBehindYou = Math.cos((sunPos.getAzimuth()) * deg2rad) < 0;
+		}
 		sunDiameter = 50;
 		sun = new Ellipse2D.Double(sunX-(sunDiameter/2),sunY-(sunDiameter/2), 50, 50);
 		g2.setPaint(Color.YELLOW);
@@ -255,12 +250,13 @@ public class Sunrise extends Frame implements ActionListener {
 		g2.setPaint((Color.BLACK));
 		g2.setFont(new Font("Arial", Font.PLAIN, 10));
 
-		g2.drawString(df2.format(cal.getTime()), sun.getBounds().x - 5, sun.getBounds().y - 5);
+		g2.drawString(df2.format(cal.getTime()) + (sunBehindYou ? "(behind)" : ""), sun.getBounds().x - 5, sun.getBounds().y - 5);
 
 		lastDrawnAt = new Date();
 		String captions[] = {"Location: "+location.getName()+", "+nf.format(location.getLatitude())+"¼, "+nf.format(location.getLongitude())+"¼",
 				"Drawn at: "+lastDrawnAt,
-				"Azimuth: "+nf.format(sunPos.getAzimuth())+"¼, elevation: "+nf.format(sunPos.getElevation())+"¼"};
+				"Azimuth: "+nf.format(sunPos.getAzimuth())+"¼, elevation: "+nf.format(sunPos.getElevation())+"¼",
+				"Facing "+facingDirection};
 		int captionY = 40;
 		for (String c : captions) {
 			g2.drawString(c, 15, captionY);
@@ -305,6 +301,7 @@ public class Sunrise extends Frame implements ActionListener {
 		File f = new File(propertiesFile);
 		if (!f.exists()) {
 			System.out.println("Config file not found: "+f.getAbsolutePath());
+			return;
 		} else {
 			System.out.println("Loading config from file: "+f.getAbsolutePath());
 		}
@@ -320,6 +317,8 @@ public class Sunrise extends Frame implements ActionListener {
 			
 			System.out.println("Location set to: "+location);
 			
+		}catch (FileNotFoundException fe) {
+			throw new RuntimeException("File not found: "+f.getAbsolutePath(), fe);
 		} catch (IOException ie) {
 			throw new RuntimeException(ie);
 		}
