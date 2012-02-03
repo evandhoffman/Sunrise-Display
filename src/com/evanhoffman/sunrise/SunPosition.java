@@ -112,7 +112,7 @@ sunPosition <- function(year, month, day, hour=12, min=0, sec=0,
     return(list(elevation=el, azimuth=az))
 }
 </pre>
- * @author evan
+ * @author evandhoffman@gmail.com
  *
  */
 public class SunPosition {

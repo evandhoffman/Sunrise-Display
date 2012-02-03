@@ -1,5 +1,10 @@
 package com.evanhoffman.sunrise;
 
+/**
+ * 
+ * @author evandhoffman@gmail.com
+ *
+ */
 public class MapCoordinate {
 	private double latitude = 0;
 	private double longitude = 0;

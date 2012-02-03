@@ -5,6 +5,11 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 
+/**
+ * 
+ * @author evandhoffman@gmail.com
+ *
+ */
 public class SunPositionTester {
 	
 	public static void main(String args[]) {
