@@ -3,6 +3,7 @@ package com.evanhoffman.sunrise;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Frame;
 import java.awt.GradientPaint;
 import java.awt.Graphics;
@@ -68,6 +69,23 @@ public class Sunrise extends Frame {
 		f.setSize(WIDTH,HEIGHT);
 		f.center();
 		f.setVisible(true);
+
+		while(true) {
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException ie) {
+				throw new RuntimeException(ie);
+			}
+			Date now = new Date();
+			if (f.lastDrawnAt == null || 
+					(now.getTime() - f.lastDrawnAt.getTime() >= (f.secondsBetweenRedraw * 1000))
+			) {
+
+				f.repaint();
+			}
+		}
+
+
 	}
 
 	public void drawScene(Graphics g) {
@@ -105,35 +123,29 @@ public class Sunrise extends Frame {
 		int centerY = HEIGHT-100;
 
 		double deg2rad = Math.PI / 180d;
-		//		for (int i = 0; i < 360; i += 5) {
-		//			double angleRadians = i * deg2rad;
-		//			int endX = (int)(Math.cos(angleRadians) * sunDistance)+centerX;
-		//			int endY = (int)(Math.sin(angleRadians) * sunDistance)+centerY;
-		//			Line2D line = new Line2D.Float(centerX, centerY, endX, endY);
-		//			g2.draw(line);
-		//		}
 
-		DateFormat df = new SimpleDateFormat("HH:mm z");
+		DateFormat df = new SimpleDateFormat("HH:mm:ss z");
 
 		int sunX = 0; 
 		int sunY = 0;
 
 		Calendar cal = Calendar.getInstance();
 		SunPosition sunPos = new SunPosition(cal.getTime(), location);
-		int sunDistance =  (int)(WIDTH * 0.5) - 100;
+		int sunDistance =  (int)(WIDTH * 0.5) - 50;
 
 		Ellipse2D sun = null;
 
 		cal.set(Calendar.HOUR_OF_DAY, 0);
 		cal.set(Calendar.MINUTE, 0);
-		cal.set(Calendar.MINUTE, 0);
+		cal.set(Calendar.SECOND, 0);
 		cal.set(Calendar.MILLISECOND, 0);
 
 		int dayOfYear = cal.get(Calendar.DAY_OF_YEAR);
 
+		g2.setFont(new Font("Arial", Font.PLAIN, 8));
 
 		while(cal.get(Calendar.DAY_OF_YEAR) == dayOfYear) {
-			cal.add(Calendar.MINUTE, 60);
+			cal.add(Calendar.MINUTE, 30);
 
 			sunPos.calculatePosition(cal.getTime());
 
@@ -154,12 +166,12 @@ public class Sunrise extends Frame {
 				sunX = centerX + (int)(Math.cos((90 + sunPos.getAzimuth()) * deg2rad) * sunDistance) ;
 				sunY = centerY - (int)(Math.sin(sunPos.getElevation() * deg2rad) * sunDistance);
 			}			
-			sun = new Ellipse2D.Double(sunX,sunY, 15, 15);
+			sun = new Ellipse2D.Double(sunX,sunY, 20, 20);
 			g2.setPaint(Color.ORANGE);
 			g2.setStroke(new BasicStroke(8));
 			g2.fill(sun);
 			g2.setPaint((Color.BLACK));
-			g2.drawString(df.format(cal.getTime()), sunX, sunY);
+			g2.drawString("-"+df.format(cal.getTime()), sunX+21, sunY+12);
 		}
 
 		// Draw the ground.
@@ -171,10 +183,10 @@ public class Sunrise extends Frame {
 
 		// "now" sun in front of ground.
 
-		sunPos.calculatePosition(new Date());
+		cal.setTime(new Date());
+		sunPos.calculatePosition(cal.getTime());
 
 		if (location.getLatitude() > 0) {
-			System.out.println(sunPos);
 			/*
 			 * Add 90 to the Azimuth for drawing.  In NY, sunrise is at around 120¼ Azimuth.  On the unit circle that
 			 * I learned in school, with 0 to the right and 90¼ at the top, 120¼ is in quadrant II 
@@ -183,19 +195,21 @@ public class Sunrise extends Frame {
 			 * 270¼ West, and 120¼ is in what would be Quadrant IV.  So you want to subtract 90, 
 			 * but rotate 180 (since the sun is in the south).
 			 */
-			sunX = centerX + (int)(Math.cos((90+ sunPos.getAzimuth()) * deg2rad) * sunDistance) ;
-			sunY = centerY - (int)(Math.sin(sunPos.getElevation() * deg2rad) * sunDistance);
+			sunX = centerX + (int)(Math.cos((90+ sunPos.getAzimuth()) * deg2rad) * sunDistance*1.1) ;
+			sunY = centerY - (int)(Math.sin(sunPos.getElevation() * deg2rad) * sunDistance*1.1);
 			//sunY = centerY;
 		} else {
 			sunX = centerX + (int)(Math.cos((90 + sunPos.getAzimuth()) * deg2rad) * sunDistance) ;
 			sunY = centerY - (int)(Math.sin(sunPos.getElevation() * deg2rad) * sunDistance);
 		}			
-		sun = new Ellipse2D.Double(sunX,sunY, 40, 40);
+		sun = new Ellipse2D.Double(sunX,sunY, 50, 50);
 		g2.setPaint(Color.YELLOW);
 		g2.setStroke(new BasicStroke(8));
 		g2.fill(sun);
 		g2.setPaint((Color.BLACK));
-		g2.drawString("Right Now: "+df.format(cal.getTime()), sunX, sunY);
+		g2.setFont(new Font("Arial", Font.PLAIN, 10));
+
+		g2.drawString("Right Now: "+df.format(cal.getTime()), sunX-20, sunY-30);
 
 		lastDrawnAt = new Date();
 		NumberFormat nf = new DecimalFormat("###.000");
@@ -210,21 +224,6 @@ public class Sunrise extends Frame {
 
 	}
 
-	//		while(true) {
-	//			try {
-	//				Thread.sleep(1000);
-	//			} catch (InterruptedException ie) {
-	//				throw new RuntimeException(ie);
-	//			}
-	//			Date now = new Date();
-	//			if (lastDrawnAt == null || 
-	//					(now.getTime() - lastDrawnAt.getTime() >= (secondsBetweenRedraw * 1000))
-	//			) {
-	//
-	//
-	//		}
-
-	//	}
 
 }
 
