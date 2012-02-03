@@ -18,6 +18,8 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Rectangle2D;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -27,6 +29,7 @@ import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Properties;
 
 /**
  * 
@@ -104,6 +107,8 @@ public class Sunrise extends Frame implements ActionListener {
 			f.setDesktop(Desktop.getDesktop());
 
 		}
+		
+		loadProperties();
 
 
 		while(true) {
@@ -287,7 +292,38 @@ public class Sunrise extends Frame implements ActionListener {
 
 	}
 
-
+	static final String propertiesFile = "sunrise.conf";
+	/**
+	 * Allow config via properties file, format:
+	 * 
+	 * locationName=JFK Airport
+	 * locationLatitude=40.64366
+	 * locationLongitude=-73.78268
+	 */
+	static void loadProperties() {
+		
+		File f = new File(propertiesFile);
+		if (!f.exists()) {
+			System.out.println("Config file not found: "+f.getAbsolutePath());
+		} else {
+			System.out.println("Loading config from file: "+f.getAbsolutePath());
+		}
+		FileInputStream is = null;
+		try {
+			is = new FileInputStream(f);
+			Properties p = new Properties();
+			p.load(is);
+			System.out.println("Loaded properties: "+p);
+			location.setName(p.getProperty("locationName"));
+			location.setLatitude(Double.parseDouble(p.getProperty("locationLatitude")));
+			location.setLongitude(Double.parseDouble(p.getProperty("locationLongitude")));
+			
+			System.out.println("Location set to: "+location);
+			
+		} catch (IOException ie) {
+			throw new RuntimeException(ie);
+		}
+	}
 
 }
 
