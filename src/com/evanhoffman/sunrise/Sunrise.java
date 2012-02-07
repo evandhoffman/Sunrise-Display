@@ -31,6 +31,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Properties;
+import java.util.TimeZone;
 
 /**
  * 
@@ -50,22 +51,29 @@ public class Sunrise extends Frame implements ActionListener {
 	private Date lastDrawnAt = null;
 	private int milliSecondsBetweenRedraw = 100;
 
-	NumberFormat nf = new DecimalFormat("###.000");
-	DateFormat df1 = new SimpleDateFormat("HH:mm z");
-	DateFormat df2 = new SimpleDateFormat("HH:mm:ss z");
+	private NumberFormat nf = new DecimalFormat("###.000");
+	private DateFormat df1 = new SimpleDateFormat("HH:mm z");
+	private DateFormat df2 = new SimpleDateFormat("HH:mm:ss z");
 
 
-	static final int WIDTH=1024;
-	static final int HEIGHT=550;
-	static final MapCoordinate location = new MapCoordinate("JFK Airport",40.64366, -73.78268);
+	private int windowWidth=1024;
+	private int windowHeight=500;
+	
+	private int sunDistance =  300;
+	private int groundPosition = 300;
 
-	public Sunrise() { 
-		this("Sunrise v1.0"); 
+	private TimeZone timeZone = TimeZone.getTimeZone("America/New_York");
+	
+	private static MapCoordinate location = new MapCoordinate("JFK Airport",40.64366, -73.78268);
+	
+	private Date now = new Date();
 
-	}
-
-	public Sunrise(String title) {
+	public Sunrise(String title, int width, int height) {
 		super(title);
+		setTitle(title);
+
+		this.windowHeight=height;
+		this.windowWidth=width;
 		createUI();
 		b = new Button("Open Map");
 //		add(b);
@@ -73,7 +81,7 @@ public class Sunrise extends Frame implements ActionListener {
 	}
 
 	void createUI() {
-		setSize(800, 600);
+		setSize(windowWidth,windowHeight);
 		center();
 
 		addWindowListener(new WindowAdapter() {
@@ -97,9 +105,21 @@ public class Sunrise extends Frame implements ActionListener {
 	public static void main(String[] args) {
 
 
-		Sunrise f = new Sunrise();
-		f.setTitle("Sunrise v1.0");
-		f.setSize(WIDTH,HEIGHT);
+		
+		Properties p = loadProperties();
+		if (p == null) {
+			p = new Properties();
+		}
+
+		Sunrise f = new Sunrise("Sunrise $Date$ $Id$", 
+				Integer.parseInt(p.getProperty("windowWidth","600")),
+				Integer.parseInt(p.getProperty("windowHeight","1000")));
+		
+		f.groundPosition = Integer.parseInt(p.getProperty("groundPosition","500"));
+		f.sunDistance = Integer.parseInt(p.getProperty("sunDistance","200"));
+		
+		
+//		f.setSize(f.windowWidth,f.windowHeight);
 		f.center();
 		f.setVisible(true);
 
@@ -109,7 +129,6 @@ public class Sunrise extends Frame implements ActionListener {
 
 		}
 		
-		loadProperties();
 
 
 		while(true) {
@@ -136,34 +155,36 @@ public class Sunrise extends Frame implements ActionListener {
 
 	public void paint(Graphics g) {
 		super.paint(g);
+		
+		now = new Date();
 		Graphics2D g2 = (Graphics2D)g;
 
 		GradientPaint gp = null;
 
 		// Draw the Sky.
-		gp = new GradientPaint(0, 0, new Color(0,191,255), 0, HEIGHT-100, new Color(135,206,250), false); // Brown gradient
+		gp = new GradientPaint(0, 0, new Color(0,191,255), 0, groundPosition, new Color(135,206,250), false); // Brown gradient
 
-		Rectangle2D sky = new Rectangle2D.Double(0, 0, WIDTH, HEIGHT-100);
+		Rectangle2D sky = new Rectangle2D.Double(0, 0, windowWidth, groundPosition);
 		g2.setPaint(gp);
 		g2.fill(sky);
 
 
 		// Draw the house.
-		Rectangle2D houseBody = new Rectangle2D.Double((WIDTH/2)-50, HEIGHT-200, 100, 100);
+		Rectangle2D houseBody = new Rectangle2D.Double((windowWidth/2)-50, groundPosition-100, 100, 100);
 		g2.setPaint(Color.RED);
 		g2.fill(houseBody);
 
 		Polygon houseRoof = new Polygon();
-		houseRoof.addPoint((WIDTH/2)-75, HEIGHT-200);
-		houseRoof.addPoint((WIDTH/2)+75, HEIGHT-200);
-		houseRoof.addPoint((WIDTH/2), HEIGHT-300);
+		houseRoof.addPoint((windowWidth/2)-75, groundPosition-100);
+		houseRoof.addPoint((windowWidth/2)+75, groundPosition-100);
+		houseRoof.addPoint((windowWidth/2), groundPosition-141);
 		g2.setPaint(Color.BLACK);
 		g2.fill(houseRoof);
 
 		// Calculate sun's position.
 
-		int centerX = WIDTH/2;
-		int centerY = HEIGHT-100;
+		int centerX = windowWidth/2;
+		int centerY = groundPosition;
 
 		double deg2rad = Math.PI / 180d;
 
@@ -172,8 +193,8 @@ public class Sunrise extends Frame implements ActionListener {
 		int sunY = 0;
 
 		Calendar cal = Calendar.getInstance();
+		
 		SunPosition sunPos = new SunPosition(cal.getTime(), location);
-		int sunDistance =  (int)(WIDTH * 0.5) - 50;
 
 		Ellipse2D sun = null;
 
@@ -208,7 +229,7 @@ public class Sunrise extends Frame implements ActionListener {
 			}			
 			// Put the center of the sun (rather than the corner) on the appropriate point
 			sun = new Ellipse2D.Double(sunX-(sunDiameter/2),sunY-(sunDiameter/2), sunDiameter, sunDiameter);
-			g2.setPaint(Color.ORANGE);
+			g2.setPaint(sunBehindYou ? new Color(218,165,32) : Color.ORANGE);
 			g2.setStroke(new BasicStroke(8));
 			g2.fill(sun);
 			g2.setPaint((Color.BLACK));
@@ -217,28 +238,28 @@ public class Sunrise extends Frame implements ActionListener {
 
 
 		// Draw the ground.
-		gp = new GradientPaint(0, HEIGHT-100, new Color(205,133,63,224), 0, HEIGHT, new Color(222,184,135,224), false); // Brown gradient
+		gp = new GradientPaint(0, groundPosition, new Color(205,133,63,224), 0, windowHeight, new Color(222,184,135,224), false); // Brown gradient
 
-		Rectangle2D ground = new Rectangle2D.Double(0, HEIGHT-100, WIDTH, 100);
+		Rectangle2D ground = new Rectangle2D.Double(0, groundPosition, windowWidth, windowHeight-groundPosition);
 		g2.setPaint(gp);
 		g2.fill(ground);
 
 		// "now" sun in front of ground.
 
-		cal.setTime(new Date());
+		cal.setTime(now);
 		sunPos.calculatePosition(cal.getTime());
 
-		sunDistance *= 1.2;
+		double sunDistanceMultiplier = 1.2;
 		String facingDirection;
 		if (location.getLatitude() > 0) {
-			sunX = centerX + (int)(Math.sin((-1*sunPos.getAzimuth()) * deg2rad) * sunDistance) ; // -1 to face south. sin() because azimuth and unit circle don't face the same direction.			
-			sunY = centerY - (int)(Math.sin(sunPos.getElevation() * deg2rad) * sunDistance);
+			sunX = centerX + (int)(Math.sin((-1*sunPos.getAzimuth()) * deg2rad) * sunDistance * sunDistanceMultiplier) ; // -1 to face south. sin() because azimuth and unit circle don't face the same direction.			
+			sunY = centerY - (int)(Math.sin(sunPos.getElevation() * deg2rad) * sunDistance * sunDistanceMultiplier);
 			sunBehindYou = Math.cos((-1*sunPos.getAzimuth()) * deg2rad) > 0;
 			//sunY = centerY;
 			facingDirection = "SOUTH";
 		} else {
-			sunX = centerX + (int)(Math.sin((sunPos.getAzimuth()) * deg2rad) * sunDistance) ;
-			sunY = centerY - (int)(Math.sin(sunPos.getElevation() * deg2rad) * sunDistance);
+			sunX = centerX + (int)(Math.sin((sunPos.getAzimuth()) * deg2rad) * sunDistance * sunDistanceMultiplier) ;
+			sunY = centerY - (int)(Math.sin(sunPos.getElevation() * deg2rad) * sunDistance * sunDistanceMultiplier);
 			facingDirection = "NORTH";
 			sunBehindYou = Math.cos((sunPos.getAzimuth()) * deg2rad) < 0;
 		}
@@ -252,10 +273,11 @@ public class Sunrise extends Frame implements ActionListener {
 
 		g2.drawString(df2.format(cal.getTime()) + (sunBehindYou ? "(behind)" : ""), sun.getBounds().x - 5, sun.getBounds().y - 5);
 
-		lastDrawnAt = new Date();
+		lastDrawnAt = now;
 		String captions[] = {"Location: "+location.getName()+", "+nf.format(location.getLatitude())+"¼, "+nf.format(location.getLongitude())+"¼",
 				"Drawn at: "+lastDrawnAt,
 				"Azimuth: "+nf.format(sunPos.getAzimuth())+"¼, elevation: "+nf.format(sunPos.getElevation())+"¼",
+				"All times reported in time zone: "+timeZone.getID()+", "+timeZone.getDisplayName()+", UTC"+getTimezoneOffsetHours(cal),
 				"Facing "+facingDirection};
 		int captionY = 40;
 		for (String c : captions) {
@@ -263,6 +285,18 @@ public class Sunrise extends Frame implements ActionListener {
 			captionY += 15;
 		}
 
+	}
+	
+	static String getTimezoneOffsetHours(Calendar cal) {
+		int offsetHours = (((cal.get(Calendar.ZONE_OFFSET) + cal.get(Calendar.DST_OFFSET)) / (3600 * 1000)));
+		if (offsetHours < 0) {
+			return Integer.toString(offsetHours);
+		}
+		if (offsetHours > 0) {
+			return "+"+Integer.toString(offsetHours);
+		}
+		return "";
+		
 	}
 
 	@Override
@@ -296,12 +330,12 @@ public class Sunrise extends Frame implements ActionListener {
 	 * locationLatitude=40.64366
 	 * locationLongitude=-73.78268
 	 */
-	static void loadProperties() {
+	static Properties loadProperties() {
 		
 		File f = new File(propertiesFile);
 		if (!f.exists()) {
 			System.out.println("Config file not found: "+f.getAbsolutePath());
-			return;
+			return null;
 		} else {
 			System.out.println("Loading config from file: "+f.getAbsolutePath());
 		}
@@ -317,6 +351,7 @@ public class Sunrise extends Frame implements ActionListener {
 			
 			System.out.println("Location set to: "+location);
 			
+			return p;
 		}catch (FileNotFoundException fe) {
 			throw new RuntimeException("File not found: "+f.getAbsolutePath(), fe);
 		} catch (IOException ie) {
