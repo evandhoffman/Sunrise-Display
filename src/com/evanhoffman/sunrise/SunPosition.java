@@ -1,11 +1,12 @@
 package com.evanhoffman.sunrise;
 
+import static java.lang.Math.PI;
+import static java.lang.Math.acos;
 import static java.lang.Math.asin;
 import static java.lang.Math.atan;
 import static java.lang.Math.cos;
 import static java.lang.Math.sin;
-import static java.lang.Math.PI;
-
+import static java.lang.Math.tan;
 
 import java.util.Calendar;
 import java.util.Date;
@@ -125,6 +126,8 @@ public class SunPosition {
 	private Date sunset = null;
 	private Date sunrise = null;
 
+	static final double zenith = 90;	// Degrees - "official."  Other options: civil=96, nautical=102, astronomical=108
+
 	/**
 	 * See: <a href="http://williams.best.vwh.net/sunrise_sunset_algorithm.htm">http://williams.best.vwh.net/sunrise_sunset_algorithm.htm</a>
 	 * 
@@ -155,33 +158,130 @@ Inputs:
 
 </pre>
 	 */
-	void calculateSunEventTime(Date d, SunEvent sunEvent) {
+	static Date calculateSunEventTime(Date d, SunEvent sunEvent, MapCoordinate coordinate) {
+
+		boolean sunNeverRises = false;
+		boolean sunNeverSets = false;
+
 		Calendar c = Calendar.getInstance();
 		c.setTime(d);
-		
+
 		// 1
-		int dayOfYear = c.get(Calendar.DAY_OF_YEAR);
+		int N = c.get(Calendar.DAY_OF_YEAR);
 
 		// 2
-		double lngHour = longitude / 15;
+		double lngHour = coordinate.getLongitude() / 15;
 
-		double approximateTime = 0;
-		if (sunEvent == SunEvent.Sunrise) {
-			approximateTime = dayOfYear + ((6 - lngHour) / 24);
-		} 
-		if (sunEvent == SunEvent.Sunset) {
-			approximateTime =  dayOfYear + ((18 - lngHour) / 24);
+		double t = 0;
+
+		switch (sunEvent) {
+		case Sunrise:
+			t = N + ((6 - lngHour) / 24);
+			break;
+		case Sunset:
+			t =  N + ((18 - lngHour) / 24);
+			break;
+		default:
+			throw new IllegalArgumentException("No support for SunEvent type: "+sunEvent);
+
 		}
-		
+
 		// 3
-		double meanAnomaly = (0.9856 * approximateTime) - 3.289;
+		double M = (0.9856 * t) - 3.289;
 
 		// 4 - Sun's true long
+		double L = M + (1.916 * sin(M * DEG2RAD)) + (0.020 * sin(2 * M * DEG2RAD)) + 282.634;
+		L = adjustInto360(L);
+
+		// 5a. calculate the Sun's right ascension
+		double RA = RAD2DEG * atan(0.91764 * tan(L * DEG2RAD));
+		RA = adjustInto360(RA);
+
+		// 5b. right ascension value needs to be in the same quadrant as L
+		double Lquadrant = (Math.floor(L/90d))*90;
+		double RAquadrant = (Math.floor(RA/90d)) * 90;
+		RA = RA + (Lquadrant - RAquadrant);
+
+		// 5c. right ascension value needs to be converted into hours
+		RA = RA / 15;
+
+		// 6. calculate the Sun's declination
+		double sinDec = RAD2DEG * 0.39782 * sin(L * DEG2RAD);
+		double cosDec = RAD2DEG * cos(asin(sinDec * DEG2RAD));
+
+		// 7a. calculate the Sun's local hour angle
+		double cosH = (cos(zenith * DEG2RAD) - (sinDec * sin(DEG2RAD * coordinate.getLatitude()))) / (cosDec * cos(coordinate.getLatitude() * DEG2RAD));
+		if (cosH > 1) {
+			// Sun never rises at this loc on this day.
+			if (sunEvent == SunEvent.Sunrise) {
+				return null;
+			}
+		}
+		if (cosH < -1) {
+			// Sun never sets at this loc on this day.
+			if (sunEvent == SunEvent.Sunset) {
+				return null;
+			}
+		}
+
+		// 7b. finish calculating H and convert into hours
+		double H;
 		
+		switch (sunEvent) {
+		case Sunrise:
+			H = 360 - (RAD2DEG * acos(cosH));
+			break;
+		case Sunset:
+			H = (RAD2DEG * acos(cosH));
+			break;
+		default:
+			throw new IllegalArgumentException("No support for SunEvent type: "+sunEvent);
+		}
 		
+		H = H / 15;
+		
+		// 8. calculate local mean time of rising/setting
+		double T = H + RA - (0.06571 * t) - 6.622;
+
+		// 9. adjust back to UTC
+		double UT = T - lngHour;
+		UT = ((UT%24)+24)%24;
+//		System.out.println(UT);
+		
+		// 10. convert UT value to local time zone of latitude/longitude
+//		double localT = 
+		
+		setCalendarHours(c, UT);
+		
+		return c.getTime();
+	}
+	
+	static void setCalendarHours(Calendar cal, double UTChours) {
+		int wholeHours = (int)UTChours;
+		double minutes = (UTChours - wholeHours) * 60;
+		int wholeMinutes = (int)minutes;
+		double seconds = (minutes - wholeMinutes) * 60;
+		int wholeSeconds = (int)seconds;
+		int milliSeconds = (int)(seconds - wholeSeconds) * 1000;
+		
+		int localHour = wholeHours + ((cal.get(Calendar.ZONE_OFFSET) + cal.get(Calendar.DST_OFFSET)) / (3600 * 1000));
+		
+		cal.set(Calendar.HOUR_OF_DAY, localHour);
+		cal.set(Calendar.MINUTE, wholeMinutes);
+		cal.set(Calendar.SECOND, wholeSeconds);
+		cal.set(Calendar.MILLISECOND, milliSeconds);
 	}
 
-	private enum SunEvent {
+	/**
+	 * Given any degree value, adjust into the range of [0,360).  -1¼ = 359¼.
+	 * @param degrees
+	 * @return
+	 */
+	static double adjustInto360(double degrees) {
+		return ((degrees % 360d)+360d)%360d;
+	}
+
+	public enum SunEvent {
 		Sunrise,
 		Sunset
 	}
@@ -214,7 +314,15 @@ Inputs:
 	 */
 
 	static final double TWOPI = PI * 2d;
-	static final double DEG2RAD = PI / 180d;
+
+	/**
+	 * Radians = degrees * DEG2RAD
+	 */
+	static final double DEG2RAD = PI / 180d;	// 
+	/**
+	 * Degrees = radians * RAD2DEG.
+	 */
+	static final double RAD2DEG = 180d / PI;	// 
 
 	private void calculatePosition() {
 		Calendar cal = Calendar.getInstance();
