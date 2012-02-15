@@ -33,6 +33,8 @@ import java.util.Date;
 import java.util.Properties;
 import java.util.TimeZone;
 
+import com.evanhoffman.sunrise.SunPosition.SunEvent;
+
 /**
  * 
  * @author evandhoffman@gmail.com
@@ -193,6 +195,7 @@ public class Sunrise extends Frame implements ActionListener {
 		int sunY = 0;
 
 		Calendar cal = Calendar.getInstance();
+		cal.setTime(now);
 		
 		SunPosition sunPos = new SunPosition(cal.getTime(), location);
 
@@ -274,11 +277,17 @@ public class Sunrise extends Frame implements ActionListener {
 		g2.drawString(df2.format(cal.getTime()) + (sunBehindYou ? "(behind)" : ""), sun.getBounds().x - 5, sun.getBounds().y - 5);
 
 		lastDrawnAt = now;
+		
+		Date sunrise = SunPosition.calculateSunEventTime(now, SunEvent.Sunrise, location);
+		Date sunset = SunPosition.calculateSunEventTime(now, SunEvent.Sunset, location);
+		
 		String captions[] = {"Location: "+location.getName()+", "+nf.format(location.getLatitude())+"¼, "+nf.format(location.getLongitude())+"¼",
 				"Drawn at: "+lastDrawnAt,
 				"Azimuth: "+nf.format(sunPos.getAzimuth())+"¼, elevation: "+nf.format(sunPos.getElevation())+"¼",
+				"Sunrise at: "+sunrise,
+				"Sunset at: "+sunset,
 				"All times reported in time zone: "+timeZone.getID()+", "+timeZone.getDisplayName()+", UTC"+getTimezoneOffsetHours(cal),
-				"Facing "+facingDirection};
+				"Facing "+facingDirection};		
 		int captionY = 40;
 		for (String c : captions) {
 			g2.drawString(c, 15, captionY);
